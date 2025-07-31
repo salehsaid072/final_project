@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../../../services/auth_service.dart';
-import '../../../../navigation/app_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LogoutDialog extends StatelessWidget {
   const LogoutDialog({super.key});
 
   Future<void> _signOut(BuildContext context) async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    await authService.signOut();
-    if (context.mounted) {
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        AppRouter.login,
-        (route) => false,
-      );
+    try {
+      await FirebaseAuth.instance.signOut();
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error signing out. Please try again.')),
+        );
+      }
     }
   }
 

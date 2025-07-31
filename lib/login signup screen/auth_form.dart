@@ -27,7 +27,7 @@ class _AuthFormState extends State<AuthForm> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _locationController = TextEditingController();
-  String _selectedRole = 'employee';
+  String _selectedRole = 'farmer';
   bool _isLoading = false;
 
   @override

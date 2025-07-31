@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilePage extends StatefulWidget {
+  const ProfilePage({super.key});
+
   @override
   _ProfilePageState createState() => _ProfilePageState();
 }
@@ -45,7 +47,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void _saveChanges() {
     if (_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profile updated successfully!')),
+        const SnackBar(content: Text('Profile updated successfully!')),
       );
     }
   }
@@ -56,7 +58,7 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: Colors.teal.shade50,
       appBar: AppBar(
         backgroundColor: Colors.teal,
-        title: Text('Profile'),
+        title: const Text('Profile'),
         centerTitle: true,
       ),
       body: Padding(
@@ -71,28 +73,28 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundImage: profileImage != null ? FileImage(profileImage!) : AssetImage('assets/images/default_profile.png') as ImageProvider,
+                      backgroundImage: profileImage != null ? FileImage(profileImage!) : const AssetImage('assets/images/default_profile.png') as ImageProvider,
                     ),
                     IconButton(
-                      icon: Icon(Icons.camera_alt, color: Colors.teal),
+                      icon: const Icon(Icons.camera_alt, color: Colors.teal),
                       onPressed: _pickImage,
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               _buildTextField('Name', username, (val) => username = val),
-              SizedBox(height: 12), // Nafasi kati ya TextFields
+              const SizedBox(height: 12), // Nafasi kati ya TextFields
               _buildTextField('Email', email, (val) => email = val, keyboardType: TextInputType.emailAddress),
-              SizedBox(height: 12), // Nafasi kati ya TextFields
+              const SizedBox(height: 12), // Nafasi kati ya TextFields
               _buildDropdown('User Type', ['Buyer', 'Farmer']),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _saveChanges,
-                child: Text('Save Changes'),
+                child: const Text('Save Changes'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ],
@@ -105,7 +107,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildTextField(String label, String initialValue, Function(String) onChanged, {TextInputType keyboardType = TextInputType.text}) {
     return TextFormField(
       initialValue: initialValue,
-      decoration: InputDecoration(labelText: label, border: OutlineInputBorder()),
+      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
       keyboardType: keyboardType,
       onChanged: onChanged,
       validator: (val) => val!.isEmpty ? 'Please enter $label' : null,
@@ -117,7 +119,7 @@ class _ProfilePageState extends State<ProfilePage> {
       value: userType,
       items: options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))).toList(),
       onChanged: (val) => setState(() => userType = val!),
-      decoration: InputDecoration(labelText: label, border: OutlineInputBorder()),
+      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
     );
   }
 }

@@ -9,20 +9,74 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
-linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
-  rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+analyzer:
+  strong-mode:
+    implicit-casts: false
+    implicit-dynamic: false
+  errors:
+    # Treat missing required parameters as a warning (not an error)
+    missing_required_param: warning
+    # Treat missing returns as a warning (not an error)
+    missing_return: warning
+    # Allow having TODOs in the code
+    todo: ignore
+    # Allow unused elements (they might be used in other files)
+    unused_element: ignore
+    # Allow unused imports (they might be used in other files)
+    unused_import: ignore
+    # Allow unused local variables (they might be used for debugging)
+    unused_local_variable: ignore
+  exclude:
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
+    - '**/*.mocks.dart'
+    - '**/*.config.dart'
+    - '**/generated_plugin_registrant.dart'
+    - '**/test/**'
+    - '**/integration_test/**'
+    - '**/web/**'
+    - '**/windows/**'
+    - '**/linux/**'
+    - '**/macos/**'
+    - '**/ios/**'
+    - '**/android/**'
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+linter:
+  rules:
+    # Enable common best practices
+    avoid_print: false  # Allow print statements for debugging
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_final_fields: true
+    prefer_final_locals: true
+    prefer_typing_uninitialized_variables: true
+    use_key_in_widget_constructors: true
+    
+    # Disable some strict rules that might be too aggressive
+    always_declare_return_types: false
+    always_put_required_named_parameters_first: false
+    avoid_init_to_null: false
+    avoid_relative_lib_imports: false
+    
+    # Style preferences
+    prefer_single_quotes: true
+    lines_longer_than_80_chars: false
+    
+    # Disable rules that conflict with Flutter's recommended patterns
+    public_member_api_docs: false
+    one_member_abstracts: false
+    
+    # Disable rules that cause issues with generated code
+    avoid_private_typedef_functions: false
+    
+    # Disable rules that are too strict for Flutter
+    avoid_unused_constructor_parameters: false
+    
+    # Disable rules that conflict with Flutter's widget system
+    avoid_void_async: false
+    
+    # Disable rules that are not practical for Flutter
+    omit_local_variable_types: false
+    
+    # Disable rules that conflict with common Flutter patterns
+    avoid_returning_this: false

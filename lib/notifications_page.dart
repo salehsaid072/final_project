@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'notification_service.dart';
 
 class NotificationsPage extends StatefulWidget {
+  const NotificationsPage({super.key});
+
   @override
   _NotificationsPageState createState() => _NotificationsPageState();
 }
@@ -58,10 +60,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
       backgroundColor: Colors.teal.shade50,
       appBar: AppBar(
         backgroundColor: Colors.teal,
-        title: Text('Notifications'),
+        title: const Text('Notifications'),
         actions: [
           IconButton(
-            icon: Icon(Icons.delete_sweep),
+            icon: const Icon(Icons.delete_sweep),
             onPressed: () {
               _showClearConfirmDialog();
             },
@@ -75,7 +77,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -141,12 +143,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
 
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: notification['isRead'] ? 1 : 3,
       color: notification['isRead'] ? Colors.white : Colors.teal.shade50,
       child: ListTile(
-        contentPadding: EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(
           backgroundColor: iconColor.withOpacity(0.2),
           child: Icon(iconData, color: iconColor),
@@ -160,12 +162,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(notification['message']),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               notification['time'],
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 color: Colors.grey,
               ),
@@ -183,7 +185,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             ? Container(
                 width: 12,
                 height: 12,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.teal,
                   shape: BoxShape.circle,
                 ),
@@ -204,7 +206,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             onPressed: () {
               Navigator.pop(context);
             },
-            child: Text('Close'),
+            child: const Text('Close'),
           ),
         ],
       ),
@@ -215,14 +217,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Clear All Notifications'),
-        content: Text('Are you sure you want to clear all notifications?'),
+        title: const Text('Clear All Notifications'),
+        content: const Text('Are you sure you want to clear all notifications?'),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
             },
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -231,7 +233,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               });
               Navigator.pop(context);
             },
-            child: Text('Clear All'),
+            child: const Text('Clear All'),
           ),
         ],
       ),

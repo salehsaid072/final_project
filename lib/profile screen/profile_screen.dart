@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:projectfrontend/services/auth_service.dart';
+import 'package:projectfrontend/models/user.dart' as user_model;
+import 'package:projectfrontend/profile%20screen/widgets/edit_profile_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user.dart';
-import '../services/auth_service.dart';
-import 'widgets/profile_header.dart';
-import 'widgets/resume_section.dart';
-import 'widgets/skills_section.dart';
-import 'widgets/qualification_section.dart';
-import 'widgets/logout_dialog.dart';
-import 'widgets/delete account/delete_account_button.dart';
-import 'widgets/edit_profile_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,7 +14,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  UserModel? _currentUser;
+  user_model.UserModel? _user;
   bool _isLoading = true;
 
   @override
@@ -39,7 +34,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (firebaseUser == null) {
         if (mounted) {
           setState(() {
-            _currentUser = null;
             _isLoading = false;
           });
         }
@@ -47,62 +41,118 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       // Get the user document from Firestore
-      final userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(firebaseUser.uid)
-              .get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .get();
 
-      if (userDoc.exists && mounted) {
-        setState(() {
-          _currentUser = UserModel.fromMap(firebaseUser.uid, userDoc.data()!);
-          _isLoading = false;
-        });
-      } else {
-        // Create a new user document if it doesn't exist
+      if (userDoc.exists) {
         if (mounted) {
           setState(() {
-            _currentUser = UserModel(
-              id: firebaseUser.uid,
-              userType: 'farmer', // Default role
-              fullName: firebaseUser.displayName?.split(' ').first ?? '',
-              email: firebaseUser.email ?? '',
-              address: '',
-            );
+            _user = user_model.UserModel.fromMap(userDoc.id, userDoc.data()!);
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Create a new user profile if it doesn't exist
+        final newUser = user_model.UserModel(
+          id: firebaseUser.uid,
+          fullName: firebaseUser.displayName ?? 'New User',
+          address: '',
+          email: firebaseUser.email ?? '',
+          userType: 'Buyer',
+        );
+        
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .set(newUser.toMap());
+            
+        if (mounted) {
+          setState(() {
+            _user = newUser;
             _isLoading = false;
           });
         }
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load profile data')),
+          SnackBar(content: Text('Error loading profile: $e')),
         );
       }
     }
   }
 
-  Future<void> _showLogoutDialog() async {
-    await LogoutDialog.show(context);
-  }
+  Future<void> _signOut() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
 
-  Future<void> _showDeleteAccountDialog() async {
+    if (shouldLogout != true) return;
+
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      await authService.deleteAccount();
-
+      setState(() => _isLoading = true);
+      await FirebaseAuth.instance.signOut();
       if (mounted) {
-        // Navigate to login screen after successful deletion
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil('/login', (route) => false);
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error signing out: ${e.message}')),
+        );
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete account: ${e.toString()}'),
+          const SnackBar(content: Text('An unexpected error occurred')),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _navigateToEditProfile() async {
+    if (_user == null) return;
+    
+    try {
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EditProfileScreen(user: _user!),
+        ),
+      );
+
+      if (result == true && mounted) {
+        await _loadUserData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to open edit profile'),
             backgroundColor: Colors.red,
           ),
         );
@@ -112,72 +162,136 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_user == null) {
+      return const Scaffold(
+        body: Center(child: Text('Please sign in to view your profile')),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text('My Profile'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _user != null ? () => _navigateToEditProfile() : null,
+            tooltip: 'Edit Profile',
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: _showLogoutDialog,
-            tooltip: 'Log Out',
+            onPressed: _signOut,
+            tooltip: 'Sign Out',
           ),
         ],
       ),
-      body: _buildBody(),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.teal.shade100,
+                      child: const Icon(
+                        Icons.person,
+                        size: 50,
+                        color: Colors.teal,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _user!.fullName,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _user!.email,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Chip(
+                      label: Text(
+                        _user!.userType,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.teal,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Account Details',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildInfoRow('Address', _user!.address),
+                    const Divider(),
+                    _buildInfoRow('User Type', _user!.userType),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
-
-  Widget _buildBody() {
-    return RefreshIndicator(
-      onRefresh: _loadUserData,
-      child:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _currentUser == null
-              ? const Center(child: Text('No user data available'))
-              : _buildProfileContent(),
-    );
-  }
-
-  Widget _buildProfileContent() {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Column(
+  
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ProfileHeader(
-            name: _currentUser?.fullName ?? '',
-            email: _currentUser?.email ?? 'No email',
-            location: _currentUser?.address ?? 'Location not set',
-            onEditPressed: () async {
-              final updated = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditProfileScreen(user: _currentUser!),
-                ),
-              );
-
-              // If the profile was updated, refresh the user data
-              if (updated == true) {
-                _loadUserData(); // Make sure this method exists in your _ProfileScreenState
-              }
-            },
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
           ),
-          const SizedBox(height: 30),
-          const ResumeSection(),
-          const SizedBox(height: 30),
-          const SkillsSection(),
-          const SizedBox(height: 30),
-          const QualificationsSection(),
-          const SizedBox(height: 30),
-          // Delete account button
-          DeleteAccountButton(onPressed: _showDeleteAccountDialog),
-          const SizedBox(height: 20),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value.isNotEmpty ? value : 'Not provided',
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
         ],
       ),
     );

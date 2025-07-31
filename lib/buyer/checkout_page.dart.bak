@@ -1,0 +1,277 @@
+import 'package:flutter/material.dart';
+import '../models/order.dart' as model;
+import '../services/order_service.dart';
+
+class CheckoutPage extends StatefulWidget {
+  final Map<String, dynamic>? productDetails;
+
+  const CheckoutPage({Key? key, this.productDetails}) : super(key: key);
+
+  @override
+  _CheckoutPageState createState() => _CheckoutPageState();
+}
+
+class _CheckoutPageState extends State<CheckoutPage> {
+  final _formKey = GlobalKey<FormState>();
+  int quantity = 1;
+  String fullName = '';
+  String phoneNumber = '';
+  String deliveryAddress = '';
+  String deliveryNotes = '';
+  bool _isLoading = false;
+  final OrderService _orderService = OrderService();
+
+  @override
+  Widget build(BuildContext context) {
+    final productName = widget.productDetails?['name'] ?? 'Product';
+    final productPriceStr = widget.productDetails?['price']?.toString() ?? '0';
+    final productPrice = double.tryParse(productPriceStr) ?? 0.0;
+    final availableQuantity = int.tryParse(widget.productDetails?['quantity']?.toString() ?? '0') ?? 0;
+    final sellerId = widget.productDetails?['sellerId'] ?? '';
+
+    return Scaffold(
+      backgroundColor: Colors.teal.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.teal,
+        title: const Text('Checkout'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    _buildProductSummary(productName, productPrice),
+                    const SizedBox(height: 20),
+                    _buildQuantitySelector(availableQuantity),
+                    const SizedBox(height: 20),
+                    _buildDeliveryForm(),
+                    const SizedBox(height: 20),
+                    _buildOrderSummary(productPrice),
+                    const SizedBox(height: 20),
+                    _buildPlaceOrderButton(productName, productPrice, sellerId),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildProductSummary(String productName, double productPrice) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Image.asset(
+              widget.productDetails?['imagePath'] ?? 'assets/images/default.png',
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 80,
+                height: 80,
+                color: Colors.grey.shade300,
+                child: const Icon(Icons.image_not_supported, color: Colors.grey),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(productName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 5),
+                  Text('$productPrice TZS per unit', style: const TextStyle(fontSize: 16, color: Colors.teal)),
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuantitySelector(int availableQuantity) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove_circle, color: Colors.teal),
+              onPressed: quantity > 1 ? () => setState(() => quantity--) : null,
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.teal),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(quantity.toString(), style: const TextStyle(fontSize: 16)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle, color: Colors.teal),
+              onPressed: quantity < availableQuantity ? () => setState(() => quantity++) : null,
+            ),
+            const Spacer(),
+            Text('Available: $availableQuantity', style: const TextStyle(color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeliveryForm() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Personal Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            TextFormField(
+              decoration: InputDecoration(
+                labelText: 'Full Name',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.person, color: Colors.teal),
+              ),
+              validator: (value) => (value == null || value.isEmpty) ? 'Please enter your full name' : null,
+              onChanged: (value) => fullName = value,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              decoration: InputDecoration(
+                labelText: 'Phone Number',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.phone, color: Colors.teal),
+              ),
+              keyboardType: TextInputType.phone,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Please enter your phone number';
+                if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) return 'Please enter a valid 10-digit phone number';
+                return null;
+              },
+              onChanged: (value) => phoneNumber = value,
+            ),
+            const SizedBox(height: 20),
+            const Text('Delivery Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            TextFormField(
+              decoration: InputDecoration(
+                labelText: 'Delivery Address',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.location_on, color: Colors.teal),
+              ),
+              validator: (value) => (value == null || value.isEmpty) ? 'Please enter delivery address' : null,
+              onChanged: (value) => deliveryAddress = value,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              decoration: InputDecoration(
+                labelText: 'Additional Notes (optional)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: const Icon(Icons.note, color: Colors.teal),
+              ),
+              maxLines: 2,
+              onChanged: (value) => deliveryNotes = value,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderSummary(double productPrice) {
+    final total = productPrice * quantity;
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Text('Total:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            Text('${total.toStringAsFixed(2)} TZS', style: const TextStyle(fontSize: 18, color: Colors.teal)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceOrderButton(String productName, double productPrice, String sellerId) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.teal,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      onPressed: _isLoading ? null : () async {
+        if (_formKey.currentState?.validate() ?? false) {
+          await _placeOrder(productName, productPrice, sellerId);
+        }
+      },
+      child: const Text('Place Order', style: TextStyle(fontSize: 18)),
+    );
+  }
+
+  Future<void> _placeOrder(String productName, double productPrice, String sellerId) async {
+    setState(() => _isLoading = true);
+
+    try {
+      final order = model.Order(
+        id: '',
+        buyerName: fullName,
+        productName: productName,
+        quantity: quantity,
+        price: productPrice,
+        phoneNumber: phoneNumber,
+        address: deliveryAddress,
+        notes: deliveryNotes,
+        status: 'pending',
+        paymentStatus: 'pending',
+        sellerId: sellerId,
+        timestamp: DateTime.now(),
+      );
+
+      final orderId = await _orderService.createOrder(order);
+
+      setState(() => _isLoading = false);
+
+      // Show success dialog
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Order Placed'),
+          content: Text('Your order has been placed successfully. Order ID: $orderId'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // close dialog
+                Navigator.pop(context); // go back from checkout page
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+
+      // Show error snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to place order: $e')),
+      );
+    }
+  }
+}

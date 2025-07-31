@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import '../../../models/user_model.dart';
-import '../../../services/auth_service.dart';
+import 'package:projectfrontend/models/user.dart' as user_model;
+import 'package:projectfrontend/services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  final UserModel user;
+  final user_model.UserModel user;
 
   const EditProfileScreen({super.key, required this.user});
 
@@ -14,37 +15,35 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late String _selectedRole;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _firstNameController;
-  late TextEditingController _lastNameController;
+  late TextEditingController _fullNameController;
   late TextEditingController _emailController;
-  late TextEditingController _locationController;
+  late TextEditingController _addressController;
   late TextEditingController _currentPasswordController;
   late TextEditingController _newPasswordController;
   late TextEditingController _confirmPasswordController;
   bool _isLoading = false;
+  String? _selectedUserType;
+  final List<String> _availableUserTypes = ['Buyer', 'Farmer'];
 
   @override
   void initState() {
     super.initState();
-    _firstNameController = TextEditingController(text: widget.user.firstName);
-    _lastNameController = TextEditingController(text: widget.user.lastName);
+    _fullNameController = TextEditingController(text: widget.user.fullName);
     _emailController = TextEditingController(text: widget.user.email);
-    _locationController = TextEditingController(text: widget.user.location);
+    _addressController = TextEditingController(text: widget.user.address);
     _currentPasswordController = TextEditingController();
     _newPasswordController = TextEditingController();
     _confirmPasswordController = TextEditingController();
-    _selectedRole = widget.user.role;
+    _selectedUserType = widget.user.userType;
   }
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
+    _fullNameController.dispose();
     _emailController.dispose();
-    _locationController.dispose();
+    _addressController.dispose();
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
@@ -54,20 +53,43 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Only require current password if email or password is being changed
+    final isEmailChanging = _emailController.text.trim() != widget.user.email;
+    final isPasswordChanging = _newPasswordController.text.isNotEmpty;
+    
+    if ((isEmailChanging || isPasswordChanging) && _currentPasswordController.text.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Current password is required to update email or password'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
+      final currentUser = _auth.currentUser;
+      
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
 
-      // Verify current password first
-      final credential = EmailAuthProvider.credential(
-        email: widget.user.email,
-        password: _currentPasswordController.text,
-      );
-      await _auth.currentUser?.reauthenticateWithCredential(credential);
+      // Only reauthenticate if changing email or password
+      if (isEmailChanging || isPasswordChanging) {
+        final credential = EmailAuthProvider.credential(
+          email: widget.user.email,
+          password: _currentPasswordController.text,
+        );
+        await currentUser.reauthenticateWithCredential(credential);
+      }
 
       // Update email if changed
-      if (_emailController.text != widget.user.email) {
+      if (isEmailChanging) {
         await authService.updateEmail(
           _emailController.text.trim(),
           _currentPasswordController.text,
@@ -75,36 +97,73 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       // Update password if new password is provided
-      if (_newPasswordController.text.isNotEmpty) {
+      if (isPasswordChanging) {
         await authService.updatePassword(
           _currentPasswordController.text,
           _newPasswordController.text,
         );
       }
 
-      // Update profile info
-      await authService.updateProfile(
-        firstName: _firstNameController.text.trim(),
-        lastName: _lastNameController.text.trim(),
-        location: _locationController.text.trim(),
-        role: _selectedRole,
-      );
+      // Update user data in Firestore
+      final userUpdates = {
+        'fullName': _fullNameController.text.trim(),
+        if (isEmailChanging) 'email': _emailController.text.trim(),
+        'address': _addressController.text.trim(),
+        'userType': _selectedUserType,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.user.id)
+          .update(userUpdates);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile updated successfully!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
         Navigator.pop(context, true);
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'An error occurred';
+      
+      switch (e.code) {
+        case 'wrong-password':
+          errorMessage = 'Incorrect current password';
+          break;
+        case 'email-already-in-use':
+          errorMessage = 'Email is already in use by another account';
+          break;
+        case 'requires-recent-login':
+          errorMessage = 'Please log in again to update your email';
+          break;
+        case 'weak-password':
+          errorMessage = 'Password is too weak';
+          break;
+        default:
+          errorMessage = e.message ?? 'An unknown error occurred';
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $errorMessage'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('An error occurred: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -135,22 +194,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Column(
             children: [
               TextFormField(
-                controller: _firstNameController,
-                decoration: const InputDecoration(labelText: 'First Name'),
+                controller: _fullNameController,
+                decoration: const InputDecoration(labelText: 'Full Name'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter your first name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _lastNameController,
-                decoration: const InputDecoration(labelText: 'Last Name'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your last name';
+                    return 'Please enter your full name';
                   }
                   return null;
                 },
@@ -172,16 +220,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 16),
               TextFormField(
-                controller: _locationController,
-                decoration: const InputDecoration(labelText: 'Location'),
+                controller: _addressController,
+                decoration: const InputDecoration(labelText: 'Address'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter your location';
+                    return 'Please enter your address';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
               const SizedBox(height: 16),
               const Text(
                 'Account Type',
@@ -189,7 +236,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedRole,
+                value: _selectedUserType,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   contentPadding: EdgeInsets.symmetric(
@@ -197,21 +244,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     vertical: 8,
                   ),
                 ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'employee',
-                    child: Text('Job Seeker'),
-                  ),
-                  DropdownMenuItem(value: 'employer', child: Text('Employer')),
-                ],
+                items: _availableUserTypes.map((type) {
+                  return DropdownMenuItem(
+                    value: type.toLowerCase(),
+                    child: Text(type),
+                  );
+                }).toList(),
                 onChanged: (String? newValue) {
                   if (newValue != null) {
                     setState(() {
-                      _selectedRole = newValue;
+                      _selectedUserType = newValue;
                     });
                   }
                 },
               ),
+              const SizedBox(height: 16),
+              const SizedBox(height: 16),
+
               const Text(
                 'Security',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -221,25 +270,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 controller: _currentPasswordController,
                 decoration: const InputDecoration(
                   labelText: 'Current Password',
-                  hintText: 'Required to save any changes',
+                  hintText: 'Required only for email or password changes',
                 ),
                 obscureText: true,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Current password is required';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 16),
               const Text(
-                'Change Password (leave blank to keep current)',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                'Change Password (only if you want to update it)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _newPasswordController,
-                decoration: const InputDecoration(labelText: 'New Password'),
+                decoration: const InputDecoration(
+                  labelText: 'New Password',
+                  hintText: 'Leave empty to keep current password',
+                ),
                 obscureText: true,
                 validator: (value) {
                   if (value != null && value.isNotEmpty && value.length < 6) {
@@ -253,12 +299,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 controller: _confirmPasswordController,
                 decoration: const InputDecoration(
                   labelText: 'Confirm New Password',
+                  hintText: 'Only if changing password',
                 ),
                 obscureText: true,
                 validator: (value) {
-                  if (_newPasswordController.text.isNotEmpty &&
-                      value != _newPasswordController.text) {
-                    return 'Passwords do not match';
+                  if (_newPasswordController.text.isNotEmpty) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please confirm your new password';
+                    }
+                    if (value != _newPasswordController.text) {
+                      return 'Passwords do not match';
+                    }
                   }
                   return null;
                 },

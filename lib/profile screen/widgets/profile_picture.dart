@@ -1,22 +1,23 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../services/auth_service.dart';
-import '../../../services/image_service.dart';
+import 'package:path/path.dart' as path;
+import 'dart:async';
 
 class ProfilePicture extends StatefulWidget {
   final String? imageUrl;
   final double radius;
-  final VoidCallback? onUpdateComplete;
-  final VoidCallback? onUpdateStart;
+  final Function(String)? onImageUpdated;
+  final String userId;
 
   const ProfilePicture({
     super.key,
+    required this.userId,
     this.imageUrl,
     this.radius = 45.0,
-    this.onUpdateComplete,
-    this.onUpdateStart,
+    this.onImageUpdated,
   });
 
   @override
@@ -27,75 +28,134 @@ class _ProfilePictureState extends State<ProfilePicture> {
   bool _isLoading = false;
 
   Future<void> _updateProfilePicture() async {
-    final imageService = ImageService();
-    final authService = context.read<AuthService>();
-
     try {
-      // On web, only show gallery option
-      final source =
-          kIsWeb
-              ? ImageSource.gallery
-              : await showModalBottomSheet<ImageSource>(
-                context: context,
-                builder:
-                    (context) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.camera_alt),
-                            title: const Text('Take Photo'),
-                            onTap:
-                                () =>
-                                    Navigator.pop(context, ImageSource.camera),
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.photo_library),
-                            title: const Text('Choose from Gallery'),
-                            onTap:
-                                () =>
-                                    Navigator.pop(context, ImageSource.gallery),
-                          ),
-                        ],
-                      ),
-                    ),
-              );
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
 
-      if (source == null) return;
+      if (image == null) return;
 
-      setState(() {
-        _isLoading = true;
-        widget.onUpdateStart?.call();
+      // File size validation (5MB limit)
+      if (!kIsWeb) {
+        final file = File(image.path);
+        final sizeInMB = await file.length() / (1024 * 1024);
+        if (sizeInMB > 5) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image size should be less than 5MB'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      setState(() => _isLoading = true);
+
+      // Generate a unique filename
+      final String fileExtension = path.extension(image.path).toLowerCase();
+      final String fileName = 'profile_${widget.userId}_${DateTime.now().millisecondsSinceEpoch}$fileExtension';
+      
+      // Reference to the file in Firebase Storage
+      final Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures')
+          .child(fileName);
+
+      // Prepare the upload
+      final SettableMetadata metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {
+          'uploadedBy': widget.userId,
+          'uploadedAt': DateTime.now().toIso8601String(),
+        },
+      );
+
+      // Start the upload
+      final UploadTask uploadTask;
+      if (kIsWeb) {
+        final bytes = await image.readAsBytes();
+        uploadTask = storageRef.putData(bytes, metadata);
+      } else {
+        uploadTask = storageRef.putFile(File(image.path), metadata);
+      }
+
+      // Listen to upload progress
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        double progress = snapshot.bytesTransferred / snapshot.totalBytes;
+        print('Upload progress: ${(progress * 100).toStringAsFixed(2)}%');
       });
 
-      // Always use pickImageFromGallery for now
-      // I can implement takePhoto() later if needed
-      final image = await imageService.pickImageFromGallery();
+      // Wait for the upload to complete with timeout
+      final TaskSnapshot snapshot = await uploadTask
+          .timeout(const Duration(seconds: 30))
+          .onError((error, stackTrace) {
+            throw Exception('Upload timed out. Please check your connection and try again.');
+          });
 
-      if (kIsWeb && image is Uint8List) {
-        print('Picked image byte length: ${image.length}');
+      // Get the download URL
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
+
+      // Notify parent widget about the update
+      if (widget.onImageUpdated != null) {
+        widget.onImageUpdated!(downloadUrl);
       }
-
-      if (image == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      // Upload and update profile picture
-      await authService.updateProfilePicture(image);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile picture updated successfully')),
+          const SnackBar(
+            content: Text('Profile picture updated successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
         );
-        widget.onUpdateComplete?.call();
+      }
+    } on FirebaseException catch (e) {
+      String errorMessage = 'An error occurred';
+      
+      switch (e.code) {
+        case 'retry-limit-exceeded':
+          errorMessage = 'Upload took too long. Please try again with a better connection.';
+          break;
+        case 'unauthorized':
+          errorMessage = 'You are not authorized to upload files.';
+          break;
+        case 'canceled':
+          errorMessage = 'Upload was canceled.';
+          break;
+        default:
+          errorMessage = 'Upload failed: ${e.message}';
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } on TimeoutException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Upload timed out. Please check your connection and try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update profile picture: $e'),
+            content: Text('An unexpected error occurred: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -142,9 +202,9 @@ class _ProfilePictureState extends State<ProfilePicture> {
   }
 
   ImageProvider? _getProfileImage() {
-    if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
+    if (widget.imageUrl?.isNotEmpty ?? false) {
       return NetworkImage(widget.imageUrl!);
     }
-    return const AssetImage('assets/images/profile1.jpg');
+    return const AssetImage('assets/images/default_profile.png');
   }
 }

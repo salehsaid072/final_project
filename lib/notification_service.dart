@@ -1,26 +1,45 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
 class NotificationService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
-  int notificationCount = 0; // Kuhesabu notifications mpya
+  int notificationCount = 0;
 
   Future<void> init() async {
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    final InitializationSettings settings = InitializationSettings(android: androidSettings);
-    await _notificationsPlugin.initialize(settings);
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+
+    await _notificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (details) {
+        // Handle notification tap
+      },
+    );
   }
 
   Future<void> showNotification(String title, String body) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
       'order_channel',
       'Order Notifications',
+      channelDescription: 'Channel for order notifications',
       importance: Importance.max,
+      priority: Priority.high,
+      showWhen: true,
     );
-    const NotificationDetails details = NotificationDetails(android: androidDetails);
 
-    notificationCount++; // Ongeza idadi ya notifications mpya
-    await _notificationsPlugin.show(0, title, body, details);
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    notificationCount++;
+    await _notificationsPlugin.show(
+      notificationCount, // Use unique ID
+      title,
+      body,
+      platformChannelSpecifics,
+    );
   }
 
-  int getNotificationCount() => notificationCount; // Kurudisha idadi ya notifications mpya
+  int getNotificationCount() => notificationCount;
 }

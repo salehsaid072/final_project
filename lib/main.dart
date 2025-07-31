@@ -1,46 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'buyer_homepage.dart';
-import 'farmer_homepage.dart';
-import 'post_product_page.dart';
-import 'product_details_page.dart';
-import 'orders_page.dart';
-import 'transactions_page.dart';
-import 'settings_page.dart';
-import 'admin_login_page.dart'; // Admin Login Page
-import 'admin_home_page.dart'; // Admin Home Page
-import 'profile_page.dart'; // Profile Page
-import 'manage_users_page.dart'; // Manage Users Page
-import 'products_page.dart'; // Product Page
-import 'category_management.dart'; // Category Management
-import 'user_verification_page.dart'; // User Verification
-import 'checkout_page.dart'; // Checkout Page
-import 'payment_page.dart'; // Payment Page
-import 'product_listing_page.dart'; // Product Listing Page
-import 'notifications_page.dart'; // Notifications Page
-import 'analytics_dashboard.dart'; // Analytics Dashboard
-import 'login signup screen/login_signup.dart';// Profile Page
-import 'help_support_page.dart'; // Help & Support Page
+import 'package:projectfrontend/buyer/buyer_homepage.dart';
+import 'package:projectfrontend/buyer/checkout_page.dart';
+import 'package:projectfrontend/buyer/help_support_page.dart';
+import 'package:projectfrontend/buyer/payment_page.dart';
+import 'package:projectfrontend/buyer/product_details_page.dart';
+import 'package:projectfrontend/buyer/product_listing_page.dart';
+import 'package:projectfrontend/farmer/farmer_homepage.dart';
+import 'package:projectfrontend/farmer/post_product_page.dart';
+import 'package:projectfrontend/farmer/orders_page.dart';
+import 'package:projectfrontend/farmer/transactions_page.dart';
+import 'package:projectfrontend/farmer/products_page.dart';
+import 'package:projectfrontend/admin/admin_login_page.dart';
+import 'package:projectfrontend/admin/admin_home_page.dart';
+import 'package:projectfrontend/admin/manage_users_page.dart';
+import 'package:projectfrontend/admin/category_management.dart';
+import 'package:projectfrontend/admin/user_verification_page.dart';
+import 'package:projectfrontend/notifications_page.dart';
+import 'package:projectfrontend/profile%20screen/profile_screen.dart';
+import 'package:projectfrontend/settings_page.dart';
+import 'package:projectfrontend/login signup screen/login_signup.dart';
 import 'firebase_options.dart';   
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
     await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.web,
+      options: DefaultFirebaseOptions.currentPlatform,
     );
     print('Firebase initialized successfully');
   } catch (e) {
     print('Firebase initialization failed: $e');
-    print('Firebase configuration: ${DefaultFirebaseOptions.web.toString()}');
+    print('Firebase configuration: ${DefaultFirebaseOptions.currentPlatform.toString()}');
     rethrow;
   }
   
-  runApp(AgriMarketApp());
+  runApp(const AgriMarketApp());
 }
 
 class AgriMarketApp extends StatelessWidget {
+  const AgriMarketApp({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -51,28 +50,39 @@ class AgriMarketApp extends StatelessWidget {
       ),
       debugShowCheckedModeBanner: false,
       initialRoute: '/login_signup', // Login/Signup screen as the first screen
+      // Application routes
       routes: {
-        '/login_signup': (context) => LoginSignupScreen(),
-        '/buyer_home': (context) => BuyerHomePage(),
-        '/farmer_home': (context) => FarmerHomePage(),
-        '/post_product': (context) => PostProductPage(),
-        '/product_details': (context) => ProductDetailsPage(),
-        '/orders': (context) => OrdersPage(),
-        '/transactions': (context) => TransactionsPage(),
-        '/settings': (context) => SettingsPage(),
-        '/admin_login': (context) => AdminLoginPage(),
-        '/admin_home': (context) => AdminHomePage(),
-        '/profile': (context) => ProfilePage(),
-        '/manage_users': (context) => ManageUsersPage(),
-        '/products': (context) => ProductsPage(),
-        '/analytics': (context) => AnalyticsDashboard(),
-        '/categories': (context) => CategoryManagement(),
-        '/user_verification': (context) => UserVerificationPage(),
-        '/checkout': (context) => CheckoutPage(),
-        '/payment': (context) => PaymentPage(),
-        '/product_listing': (context) => ProductListingPage(category: 'All'),
-        '/notifications': (context) => NotificationsPage(),
-        '/help_support': (context) => HelpSupportPage(),
+        // Authentication
+        '/login_signup': (context) => const LoginSignupScreen(),
+        
+        // Buyer routes
+        '/buyer_home': (context) => const BuyerHomePage(),
+        '/product_details': (context) => const ProductDetailsPage(),
+        '/checkout': (context) => const CheckoutPage(),
+        '/payment': (context) => const PaymentPage(),
+        '/product_listing': (context) => ProductListingPage(
+          category: ModalRoute.of(context)?.settings.arguments as String? ?? 'All',
+        ),
+        
+        // Farmer routes
+        '/farmer_home': (context) => const FarmerHomePage(),
+        '/post_product': (context) => const PostProductPage(),
+        '/orders': (context) => const OrdersPage(),
+        '/transactions': (context) => const TransactionsPage(),
+        '/products': (context) =>  ProductsPage(),
+        
+        // Admin routes
+        '/admin_login': (context) => const AdminLoginPage(),
+        '/admin_home': (context) => const AdminHomePage(),
+        '/manage_users': (context) =>  ManageUsersPage(),
+        '/categories': (context) => const CategoryManagement(),
+        '/user_verification': (context) => const UserVerificationPage(),
+        
+        // Common routes
+        '/settings': (context) => const SettingsPage(),
+        '/profile': (context) => const ProfileScreen(),
+        '/notifications': (context) => const NotificationsPage(),
+        '/help_support': (context) => const HelpSupportPage(),
       },
     );
   }

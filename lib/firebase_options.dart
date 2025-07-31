@@ -7,10 +7,6 @@ class DefaultFirebaseOptions {
     if (kIsWeb) {
       return web;
     }
-    throw UnsupportedError(
-      'DefaultFirebaseOptions are not supported for this platform.',
-    );
-
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
@@ -24,13 +20,13 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: "AIzaSyDnfT_fn_JruUA5J5S8ZMCnu9v6XXyQ6bE",
-    authDomain: "agrimarkethub-613a4.firebaseapp.com",
-    projectId: "agrimarkethub-613a4",
-    storageBucket: "agrimarkethub-613a4.firebasestorage.app",
-    messagingSenderId: "65250963002",
-    appId: "1:65250963002:web:b76eb9dfe80999112b8f03",
-    measurementId: "G-ZQD9Q0DBQ3",
+    apiKey: 'AIzaSyDnfT_fn_JruUA5J5S8ZMCnu9v6XXyQ6bE',
+    authDomain: 'agrimarkethub-613a4.firebaseapp.com',
+    projectId: 'agrimarkethub-613a4',
+    storageBucket: 'agrimarkethub-613a4.firebasestorage.app',
+    messagingSenderId: '65250963002',
+    appId: '1:65250963002:web:b76eb9dfe80999112b8f03',
+    measurementId: 'G-ZQD9Q0DBQ3',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -39,6 +35,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '65250963002',
     projectId: 'agrimarkethub-613a4',
     storageBucket: 'agrimarkethub-613a4.firebasestorage.app',
+    iosClientId: '1:65250963002:ios:05c54df372b7493b2b8f03',
+    androidClientId: '1:65250963002:android:05c54df372b7493b2b8f03',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -47,7 +45,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '65250963002',
     projectId: 'agrimarkethub-613a4',
     storageBucket: 'agrimarkethub-613a4.firebasestorage.app',
-    iosClientId: 'com.example.agrimarkethub',
+    iosClientId: '1:65250963002:ios:05c54df372b7493b2b8f03',
     iosBundleId: 'com.example.agrimarkethub',
   );
 }

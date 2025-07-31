@@ -44,7 +44,7 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setDouble('text_size', textSize);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Settings saved successfully')),
+      const SnackBar(content: Text('Settings saved successfully')),
     );
   }
 
@@ -54,10 +54,10 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: Colors.teal.shade50,
       appBar: AppBar(
         backgroundColor: Colors.teal,
-        title: Text('Settings'),
+        title: const Text('Settings'),
         actions: [
           IconButton(
-            icon: Icon(Icons.save),
+            icon: const Icon(Icons.save),
             onPressed: _saveSettings,
             tooltip: 'Save Settings',
           ),
@@ -187,14 +187,14 @@ class _SettingsPageState extends State<SettingsPage> {
             },
             color: Colors.red,
           ),
-          SizedBox(height: 20),
-          Center(
+          const SizedBox(height: 20),
+          const Center(
             child: Text(
               'AgriMarket Hub v1.0.0',
               style: TextStyle(color: Colors.grey),
             ),
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -202,7 +202,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       color: Colors.teal.withOpacity(0.1),
       child: Row(
         children: [
@@ -211,8 +211,8 @@ class _SettingsPageState extends State<SettingsPage> {
             backgroundColor: Colors.teal.shade200,
             child: Icon(Icons.settings, size: 30, color: Colors.teal.shade800),
           ),
-          SizedBox(width: 16),
-          Column(
+          const SizedBox(width: 16),
+          const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -307,7 +307,7 @@ class _SettingsPageState extends State<SettingsPage> {
       leading: Icon(icon, color: color ?? Colors.teal),
       title: Text(title, style: TextStyle(color: color)),
       subtitle: Text(subtitle),
-      trailing: Icon(Icons.arrow_forward_ios, size: 16),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
       onTap: onTap,
     );
   }
@@ -320,26 +320,26 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Change Password'),
+        title: const Text('Change Password'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: currentPasswordController,
-                decoration: InputDecoration(labelText: 'Current Password'),
+                decoration: const InputDecoration(labelText: 'Current Password'),
                 obscureText: true,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextField(
                 controller: newPasswordController,
-                decoration: InputDecoration(labelText: 'New Password'),
+                decoration: const InputDecoration(labelText: 'New Password'),
                 obscureText: true,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextField(
                 controller: confirmPasswordController,
-                decoration: InputDecoration(labelText: 'Confirm New Password'),
+                decoration: const InputDecoration(labelText: 'Confirm New Password'),
                 obscureText: true,
               ),
             ],
@@ -348,14 +348,14 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
               // Validate passwords
               if (newPasswordController.text != confirmPasswordController.text) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Passwords do not match')),
+                  const SnackBar(content: Text('Passwords do not match')),
                 );
                 return;
               }
@@ -363,11 +363,11 @@ class _SettingsPageState extends State<SettingsPage> {
               // Here you would implement password change logic
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Password changed successfully')),
+                const SnackBar(content: Text('Password changed successfully')),
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-            child: Text('Change'),
+            child: const Text('Change'),
           ),
         ],
       ),
@@ -378,12 +378,12 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Logout'),
-        content: Text('Are you sure you want to logout?'),
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -391,7 +391,7 @@ class _SettingsPageState extends State<SettingsPage> {
               Navigator.pushReplacementNamed(context, '/login');
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Logout'),
+            child: const Text('Logout'),
           ),
         ],
       ),

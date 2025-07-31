@@ -1,6 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Order {
+  static const String collectionName = 'orders';
+  static const String statusPending = 'pending';
+  static const String statusConfirmed = 'confirmed';
+  static const String statusCancelled = 'cancelled';
+  static const String statusCompleted = 'completed';
   final String id;
   final String buyerName;
   final String productName;
@@ -8,7 +13,11 @@ class Order {
   final double price;
   final String phoneNumber;
   final String address;
+  final String notes;
   final String status;
+  final DateTime timestamp;
+  final String sellerId;
+  final String paymentStatus;
 
   Order({
     required this.id,
@@ -18,71 +27,58 @@ class Order {
     required this.price,
     required this.phoneNumber,
     required this.address,
+    required this.notes,
     required this.status,
+    required this.timestamp,
+    required this.sellerId,
+    required this.paymentStatus,
   });
 
+  // Convert to map for Firebase
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'buyerName': buyerName,
       'productName': productName,
       'quantity': quantity,
       'price': price,
       'phoneNumber': phoneNumber,
       'address': address,
+      'notes': notes,
       'status': status,
+      'timestamp': timestamp.toIso8601String(),
+      'sellerId': sellerId,
+      'paymentStatus': paymentStatus,
     };
   }
 
-  factory Order.fromMap(Map<String, dynamic> map) {
+  // Convert Firestore document to Order object
+  factory Order.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     return Order(
-      id: map['id'] ?? '',
-      buyerName: map['buyerName'] ?? '',
-      productName: map['productName'] ?? '',
-      quantity: map['quantity'] ?? 0,
-      price: (map['price'] as num?)?.toDouble() ?? 0.0,
-      phoneNumber: map['phoneNumber'] ?? '',
-      address: map['address'] ?? '',
-      status: map['status'] ?? 'pending',
+      id: doc.id,
+      buyerName: data['buyerName'] ?? '',
+      productName: data['productName'] ?? '',
+      quantity: (data['quantity'] ?? 0).toInt(),
+      price: (data['price'] ?? 0.0).toDouble(),
+      phoneNumber: data['phoneNumber'] ?? '',
+      address: data['address'] ?? '',
+      notes: data['notes'] ?? '',
+      status: data['status'] ?? statusPending,
+      timestamp: DateTime.parse(data['timestamp'] ?? DateTime.now().toIso8601String()),
+      sellerId: data['sellerId'] ?? '',
+      paymentStatus: data['paymentStatus'] ?? 'pending',
     );
   }
 
-  factory Order.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> snapshot,
-    SnapshotOptions? options,
-  ) {
-    final data = snapshot.data();
-    return Order(
-      id: snapshot.id,
-      buyerName: data?['buyerName'] ?? '',
-      productName: data?['productName'] ?? '',
-      quantity: data?['quantity'] ?? 0,
-      price: (data?['price'] as num?)?.toDouble() ?? 0.0,
-      phoneNumber: data?['phoneNumber'] ?? '',
-      address: data?['address'] ?? '',
-      status: data?['status'] ?? 'pending',
-    );
-  }
+  // Get total price of the order
+  double get totalPrice => price * quantity;
 
-  Order copyWith({
-    String? id,
-    String? buyerName,
-    String? productName,
-    int? quantity,
-    double? price,
-    String? phoneNumber,
-    String? address,
-    String? status,
-  }) {
-    return Order(
-      id: id ?? this.id,
-      buyerName: buyerName ?? this.buyerName,
-      productName: productName ?? this.productName,
-      quantity: quantity ?? this.quantity,
-      price: price ?? this.price,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
-      address: address ?? this.address,
-      status: status ?? this.status,
-    );
-  }
+  // Check if order can be confirmed
+  bool get canConfirm => status == statusPending;
+  
+  // Check if order can be cancelled
+  bool get canCancel => status == statusPending || status == statusConfirmed;
+  
+  // Check if order is completed
+  bool get isCompleted => status == statusCompleted;
 }
