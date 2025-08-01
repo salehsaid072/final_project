@@ -46,6 +46,15 @@ class RoleSelection extends StatelessWidget {
             groupValue: selectedRole,
             onChanged: (value) => onRoleChanged(value!),
           ),
+          RadioListTile<String>(
+            title: const Text(
+              'Admin',
+              style: TextStyle(color: Colors.white),
+            ),
+            value: 'admin',
+            groupValue: selectedRole,
+            onChanged: (value) => onRoleChanged(value!),
+          ),
         ],
       ),
     );

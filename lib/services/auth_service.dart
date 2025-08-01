@@ -41,6 +41,7 @@ class AuthService extends ChangeNotifier {
         address: address,
         userType: userType,
         email: email,
+        isVerified: false, // New users are not verified by default
       );
 
       await _firestore

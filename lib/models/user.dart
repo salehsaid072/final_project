@@ -6,6 +6,7 @@ class UserModel {
   final String address;
   final String email;
   final String userType;
+  final bool isVerified;
 
   UserModel({
     required this.id,
@@ -13,6 +14,7 @@ class UserModel {
     required this.address,
     required this.email,
     required this.userType,
+    this.isVerified = false,
   });
 
   // Convert UserModel to Map for Firestore
@@ -22,6 +24,7 @@ class UserModel {
       'address': address,
       'email': email,
       'userType': userType,
+      'isVerified': isVerified,
     };
   }
 
@@ -33,6 +36,7 @@ class UserModel {
       address: map['address'] as String,
       email: map['email'] as String,
       userType: map['userType'] as String,
+      isVerified: map['isVerified'] as bool? ?? false,
     );
   }
 
@@ -44,6 +48,7 @@ class UserModel {
       address: '',
       email: '',
       userType: '',
+      isVerified: false,
     );
   }
 
@@ -54,6 +59,7 @@ class UserModel {
     String? address,
     String? email,
     String? userType,
+    bool? isVerified,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -61,6 +67,7 @@ class UserModel {
       address: address ?? this.address,
       email: email ?? this.email,
       userType: userType ?? this.userType,
+      isVerified: isVerified ?? this.isVerified,
     );
   }
 }

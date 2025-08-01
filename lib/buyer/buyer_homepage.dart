@@ -208,7 +208,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
         unselectedItemColor: Colors.grey,
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile screen'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           const BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
         ],
         onTap: (index) {
