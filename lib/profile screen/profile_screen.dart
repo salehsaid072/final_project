@@ -20,7 +20,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    // We'll load data in didChangeDependencies
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Listen to auth state changes
+    final authService = Provider.of<AuthService>(context, listen: false);
+    authService.addListener(_onAuthStateChanged);
+    
+    // Load user data after the first frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadUserData();
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    // Remove the listener when the widget is disposed
+    final authService = Provider.of<AuthService>(context, listen: false);
+    authService.removeListener(_onAuthStateChanged);
+    super.dispose();
+  }
+  
+  void _onAuthStateChanged() {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+      _loadUserData();
+    }
+  }
+
+  // Show error message safely
+  void _showErrorMessage(String message) {
+    if (!mounted) return;
+    
+    // Ensure we're not in the build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
+  }
+
+  // Show success message
+  void _showSuccessMessage(String message) {
+    if (!mounted) return;
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    });
   }
 
   // Load user data
@@ -28,45 +94,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
 
     try {
+      print('1. Starting to load user data...');
+      
+      // Get AuthService instance
       final authService = Provider.of<AuthService>(context, listen: false);
       final firebaseUser = authService.currentUser;
+      print('2. Firebase User: ${firebaseUser?.uid ?? 'null'}');
 
       if (firebaseUser == null) {
+        print('3. No firebase user found');
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
+          _showErrorMessage('No authenticated user found. Please log in.');
         }
         return;
       }
 
       // Get the user document from Firestore
+      print('4. Fetching user document from Firestore...');
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(firebaseUser.uid)
           .get();
 
+      print('5. User document exists: ${userDoc.exists}');
+      
       if (userDoc.exists) {
-        if (mounted) {
-          setState(() {
-            _user = user_model.UserModel.fromMap(userDoc.id, userDoc.data()!);
-            _isLoading = false;
-          });
+        final userData = userDoc.data();
+        print('6. User data from Firestore: $userData');
+        
+        if (userData != null) {
+          if (mounted) {
+            setState(() {
+              _user = user_model.UserModel(
+                id: userDoc.id,
+                fullName: userData['fullName'] ?? 'No Name',
+                email: userData['email'] ?? 'No Email',
+                address: userData['address'] ?? 'Not provided',
+                userType: (userData['userType'] ?? 'buyer').toString().toLowerCase() == 'buyer' 
+                    ? 'Buyer' 
+                    : 'Farmer',
+              );
+              _isLoading = false;
+              print('7. User model created: ${_user?.toMap()}');
+            });
+          }
+        } else {
+          print('8. User data is null in Firestore document');
+          // Instead of throwing, create a default user
+          if (mounted) {
+            setState(() {
+              _user = user_model.UserModel(
+                id: firebaseUser.uid,
+                fullName: firebaseUser.displayName ?? 'New User',
+                email: firebaseUser.email ?? 'No email',
+                address: 'Not provided',
+                userType: 'Buyer',
+              );
+              _isLoading = false;
+            });
+          }
         }
       } else {
         // Create a new user profile if it doesn't exist
         final newUser = user_model.UserModel(
           id: firebaseUser.uid,
           fullName: firebaseUser.displayName ?? 'New User',
-          address: '',
-          email: firebaseUser.email ?? '',
+          address: 'Not provided',
+          email: firebaseUser.email ?? 'No email',
           userType: 'Buyer',
         );
         
         await FirebaseFirestore.instance
             .collection('users')
             .doc(firebaseUser.uid)
-            .set(newUser.toMap());
+            .set({
+              'fullName': newUser.fullName,
+              'email': newUser.email,
+              'address': newUser.address,
+              'userType': newUser.userType.toLowerCase(),
+              'createdAt': FieldValue.serverTimestamp(),
+            });
             
         if (mounted) {
           setState(() {
@@ -81,9 +191,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading profile: $e')),
+          const SnackBar(
+            content: Text('Error loading profile. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
+      debugPrint('Error loading user data: $e');
     }
   }
 
@@ -135,7 +249,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _navigateToEditProfile() async {
-    if (_user == null) return;
+    if (_user == null) {
+      _showErrorMessage('User data not available. Please try again.');
+      return;
+    }
     
     try {
       final result = await Navigator.push<bool>(
@@ -146,17 +263,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (result == true && mounted) {
+        // Show a loading indicator while refreshing data
+        if (mounted) {
+          setState(() {
+            _isLoading = true;
+          });
+        }
         await _loadUserData();
+        _showSuccessMessage('Profile updated successfully!');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to open edit profile'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showErrorMessage('Failed to open edit profile: ${e.toString()}');
     }
   }
 
@@ -169,8 +286,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (_user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Please sign in to view your profile')),
+      return Scaffold(
+        appBar: AppBar(title: const Text('Profile')),
+        body: const Center(
+          child: Text('Failed to load profile data. Please try again later.'),
+        ),
       );
     }
 
@@ -180,7 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: _user != null ? () => _navigateToEditProfile() : null,
+            onPressed: () => _navigateToEditProfile(),
             tooltip: 'Edit Profile',
           ),
           IconButton(
@@ -215,7 +335,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      _user!.fullName,
+                      _user?.fullName ?? 'No Name',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -223,20 +343,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _user!.email,
+                      _user?.email ?? 'No Email',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Chip(
-                      label: Text(
-                        _user!.userType,
-                        style: const TextStyle(color: Colors.white),
+                    if (_user?.userType != null)
+                      Chip(
+                        label: Text(
+                          _user!.userType,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.teal,
                       ),
-                      backgroundColor: Colors.teal,
-                    ),
                   ],
                 ),
               ),
@@ -256,9 +377,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    _buildInfoRow('Address', _user!.address),
+                    _buildInfoRow('Address', _user?.address ?? 'Not provided'),
                     const Divider(),
-                    _buildInfoRow('User Type', _user!.userType),
+                    _buildInfoRow('User Type', _user?.userType ?? 'Not specified'),
                   ],
                 ),
               ),

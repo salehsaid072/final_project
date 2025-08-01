@@ -15,7 +15,6 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _fullNameController;
   late TextEditingController _emailController;
@@ -23,9 +22,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _currentPasswordController;
   late TextEditingController _newPasswordController;
   late TextEditingController _confirmPasswordController;
+  
   bool _isLoading = false;
-  String? _selectedUserType;
-  final List<String> _availableUserTypes = ['Buyer', 'Farmer'];
+  bool _isPasswordVisible = false;
+  
+  // User type should not be changed by the user
+  late String _userType;
 
   @override
   void initState() {
@@ -36,7 +38,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _currentPasswordController = TextEditingController();
     _newPasswordController = TextEditingController();
     _confirmPasswordController = TextEditingController();
-    _selectedUserType = widget.user.userType;
+    _userType = widget.user.userType;
   }
 
   @override
@@ -50,19 +52,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  // Validate required fields
+  String? _validateRequired(String? value, String fieldName) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Please enter your $fieldName';
+    }
+    return null;
+  }
+
+  // Validate email format
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Please enter your email';
+    }
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
+  // Validate password strength
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (value.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    return null;
+  }
+
+  // Validate password confirmation
+  String? _validateConfirmPassword(String? value) {
+    if (value != _newPasswordController.text) {
+      return 'Passwords do not match';
+    }
+    return null;
+  }
+
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Only require current password if email or password is being changed
-    final isEmailChanging = _emailController.text.trim() != widget.user.email;
     final isPasswordChanging = _newPasswordController.text.isNotEmpty;
+    final isEmailChanging = _emailController.text.trim() != widget.user.email;
     
+    // Require current password for sensitive changes
     if ((isEmailChanging || isPasswordChanging) && _currentPasswordController.text.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Current password is required to update email or password'),
             backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -73,21 +112,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final currentUser = _auth.currentUser;
       
-      if (currentUser == null) {
-        throw Exception('User not authenticated');
-      }
-
-      // Only reauthenticate if changing email or password
-      if (isEmailChanging || isPasswordChanging) {
-        final credential = EmailAuthProvider.credential(
-          email: widget.user.email,
-          password: _currentPasswordController.text,
-        );
-        await currentUser.reauthenticateWithCredential(credential);
-      }
-
       // Update email if changed
       if (isEmailChanging) {
         await authService.updateEmail(
@@ -96,7 +121,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         );
       }
 
-      // Update password if new password is provided
+      // Update password if changed
       if (isPasswordChanging) {
         await authService.updatePassword(
           _currentPasswordController.text,
@@ -104,19 +129,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         );
       }
 
-      // Update user data in Firestore
-      final userUpdates = {
-        'fullName': _fullNameController.text.trim(),
-        if (isEmailChanging) 'email': _emailController.text.trim(),
-        'address': _addressController.text.trim(),
-        'userType': _selectedUserType,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.user.id)
-          .update(userUpdates);
+      // Update user profile
+      await authService.updateProfile(
+        fullName: _fullNameController.text.trim(),
+        address: _addressController.text.trim(),
+        userType: _userType,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -139,10 +157,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           errorMessage = 'Email is already in use by another account';
           break;
         case 'requires-recent-login':
-          errorMessage = 'Please log in again to update your email';
+          errorMessage = 'Session expired. Please log in again to continue';
           break;
         case 'weak-password':
-          errorMessage = 'Password is too weak';
+          errorMessage = 'Password is too weak. Please choose a stronger password';
           break;
         default:
           errorMessage = e.message ?? 'An unknown error occurred';
@@ -161,7 +179,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('An error occurred: ${e.toString()}'),
+            content: Text('Failed to update profile: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -173,9 +191,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     }
   }
+  
+  // Toggle password visibility
+  void _togglePasswordVisibility() {
+    setState(() {
+      _isPasswordVisible = !_isPasswordVisible;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
@@ -192,134 +219,161 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Full Name Field
               TextFormField(
                 controller: _fullNameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your full name';
-                  }
-                  return null;
-                },
+                decoration: const InputDecoration(
+                  labelText: 'Full Name',
+                  prefixIcon: Icon(Icons.person_outline),
+                  border: OutlineInputBorder(),
+                ),
+                textInputAction: TextInputAction.next,
+                validator: (value) => _validateRequired(value, 'full name'),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 16.0),
+              
+              // Email Field
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(),
+                ),
                 keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!value.contains('@')) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
+                textInputAction: TextInputAction.next,
+                validator: _validateEmail,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 16.0),
+              
+              // Address Field
               TextFormField(
                 controller: _addressController,
-                decoration: const InputDecoration(labelText: 'Address'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your address';
-                  }
-                  return null;
-                },
+                decoration: const InputDecoration(
+                  labelText: 'Address',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+                textInputAction: TextInputAction.next,
+                validator: (value) => _validateRequired(value, 'address'),
               ),
-              const SizedBox(height: 16),
+              
+              // User Type Display (Read-only)
+              const SizedBox(height: 16.0),
+              InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Account Type',
+                  prefixIcon: Icon(Icons.verified_user_outlined),
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(vertical: 16.0, horizontal: 12.0),
+                ),
+                child: Text(
+                  _userType,
+                  style: theme.textTheme.bodyLarge,
+                ),
+              ),
+              
+              // Password Change Section
+              const SizedBox(height: 24.0),
+              const Divider(),
+              const SizedBox(height: 8.0),
               const Text(
-                'Account Type',
+                'Change Password',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _selectedUserType,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-                items: _availableUserTypes.map((type) {
-                  return DropdownMenuItem(
-                    value: type.toLowerCase(),
-                    child: Text(type),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedUserType = newValue;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              const SizedBox(height: 16),
-
+              const SizedBox(height: 8.0),
               const Text(
-                'Security',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                'Leave blank to keep current password',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 16.0),
+              
+              // Current Password
               TextFormField(
                 controller: _currentPasswordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Current Password',
-                  hintText: 'Required only for email or password changes',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: _togglePasswordVisibility,
+                  ),
                 ),
-                obscureText: true,
+                obscureText: !_isPasswordVisible,
+                textInputAction: TextInputAction.next,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Change Password (only if you want to update it)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12.0),
+              
+              // New Password
               TextFormField(
                 controller: _newPasswordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'New Password',
-                  hintText: 'Leave empty to keep current password',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: _togglePasswordVisibility,
+                  ),
                 ),
-                obscureText: true,
-                validator: (value) {
-                  if (value != null && value.isNotEmpty && value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
+                obscureText: !_isPasswordVisible,
+                textInputAction: TextInputAction.next,
+                validator: _validatePassword,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12.0),
+              
+              // Confirm New Password
               TextFormField(
                 controller: _confirmPasswordController,
                 decoration: const InputDecoration(
                   labelText: 'Confirm New Password',
-                  hintText: 'Only if changing password',
+                  prefixIcon: Icon(Icons.lock_outline),
+                  border: OutlineInputBorder(),
                 ),
-                obscureText: true,
-                validator: (value) {
-                  if (_newPasswordController.text.isNotEmpty) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please confirm your new password';
-                    }
-                    if (value != _newPasswordController.text) {
-                      return 'Passwords do not match';
-                    }
-                  }
-                  return null;
-                },
+                obscureText: !_isPasswordVisible,
+                textInputAction: TextInputAction.done,
+                validator: _validateConfirmPassword,
               ),
-              const SizedBox(height: 32),
+              
+              // Save Button
+              const SizedBox(height: 32.0),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _saveChanges,
-                  child: const Text('Save Changes'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'SAVE CHANGES',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                 ),
               ),
             ],

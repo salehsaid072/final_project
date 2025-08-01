@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:projectfrontend/notification_service.dart';
 import 'product_listing_page.dart';
+import '../profile screen/profile_screen.dart';
 
 class BuyerHomePage extends StatefulWidget {
   const BuyerHomePage({super.key});
@@ -214,7 +215,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
           if (index == 0) {
             Navigator.pushNamed(context, '/buyer_home');
           } else if (index == 1) {
-            Navigator.pushNamed(context, '/profile screen');
+            Navigator.pushNamed(context, '/profile');
           } else if (index == 2) {
             Navigator.pushNamed(context, '/notifications');
           }

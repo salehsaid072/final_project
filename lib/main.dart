@@ -20,7 +20,10 @@ import 'package:projectfrontend/notifications_page.dart';
 import 'package:projectfrontend/profile%20screen/profile_screen.dart';
 import 'package:projectfrontend/settings_page.dart';
 import 'package:projectfrontend/login signup screen/login_signup.dart';
+import 'package:projectfrontend/services/auth_service.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';   
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -35,7 +38,14 @@ void main() async {
     rethrow;
   }
   
-  runApp(const AgriMarketApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
+      ],
+      child: const AgriMarketApp(),
+    ),
+  );
 }
 
 class AgriMarketApp extends StatelessWidget {

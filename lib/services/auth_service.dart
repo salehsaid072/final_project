@@ -1,12 +1,19 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
-class AuthService {
+
+class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   // Get current user
   User? get currentUser => _auth.currentUser;
+  
+  // Notify listeners when something changes
+  void notifyAuthStateChanged() {
+    notifyListeners();
+  }
 
   // Auth state changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -43,6 +50,9 @@ class AuthService {
 
       // Send email verification
       await userCredential.user?.sendEmailVerification();
+      
+      // Notify listeners
+      notifyListeners();
 
       return user;
     } on FirebaseAuthException catch (e) {
@@ -118,6 +128,7 @@ class AuthService {
       await _firestore.collection('users').doc(user.uid).update({
         'email': newEmail,
       });
+      notifyListeners();
     } on FirebaseAuthException catch (e) {
       throw Exception(_handleAuthException(e));
     }
@@ -141,6 +152,7 @@ class AuthService {
 
       // Update password
       await user.updatePassword(newPassword);
+      notifyListeners();
     } on FirebaseAuthException catch (e) {
       throw Exception(_handleAuthException(e));
     }
@@ -163,6 +175,7 @@ class AuthService {
       if (profilePicture != null) updates['profilePicture'] = profilePicture;
 
       await _firestore.collection('users').doc(user.uid).update(updates);
+      notifyListeners();
     } on FirebaseAuthException catch (e) {
       throw Exception(_handleAuthException(e));
     }
