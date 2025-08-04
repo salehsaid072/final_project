@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:projectfrontend/models/user.dart' as user_model;
-import 'package:projectfrontend/services/auth_service.dart';
+import 'package:agrimarket_hub/models/user.dart' as user_model;
+import 'package:agrimarket_hub/services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EditProfileScreen extends StatefulWidget {

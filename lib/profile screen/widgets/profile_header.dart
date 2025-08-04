@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:projectfrontend/models/user.dart' as user_model;
-import 'package:projectfrontend/profile%20screen/widgets/edit_profile_screen.dart';
+import 'package:agrimarket_hub/models/user.dart' as user_model;
+import 'package:agrimarket_hub/profile%20screen/widgets/edit_profile_screen.dart';
 
 class ProfileHeader extends StatefulWidget {
   final user_model.UserModel user;

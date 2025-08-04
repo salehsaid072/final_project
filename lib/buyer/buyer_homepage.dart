@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:projectfrontend/notification_service.dart';
+import 'package:agrimarket_hub/notification_service.dart';
 import 'product_listing_page.dart';
 import '../profile screen/profile_screen.dart';
 

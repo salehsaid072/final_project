@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:projectfrontend/notification_service.dart';
+import 'package:agrimarket_hub/notification_service.dart';
 
 class TransactionsPage extends StatefulWidget {
   const TransactionsPage({super.key});

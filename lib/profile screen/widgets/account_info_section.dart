@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:projectfrontend/models/user.dart' as user_model;
+import 'package:agrimarket_hub/models/user.dart' as user_model;
 
 class AccountInfoSection extends StatelessWidget {
   final user_model.UserModel user;

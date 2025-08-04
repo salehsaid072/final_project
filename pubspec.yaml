@@ -1,4 +1,4 @@
-name: projectfrontend
+name: agrimarket_hub
 description: A new Flutter project.
 
 publish_to: 'none' # Remove this line if you're publishing to pub.dev
@@ -40,6 +40,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/logo.png"
 
 flutter:
   uses-material-design: true
