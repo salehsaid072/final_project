@@ -1,13 +1,13 @@
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android") // Toleo la kisasa la Kotlin
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")  // Google Services plugin
+    id("com.google.gms.google-services") // Google Services plugin
 }
 
 android {
     namespace = "com.example.projectfrontend"
-    compileSdk = 34  // Updated to latest stable version
+    compileSdk = 35 // SDK ya sasa na imesasishwa
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -22,7 +22,7 @@ android {
     defaultConfig {
         applicationId = "com.example.projectfrontend"
         minSdk = 23
-        targetSdk = 34  // Updated to match compileSdk
+        targetSdk = 35 // Imelinganishwa na compileSdk
         versionCode = 1
         versionName = "1.0.0"
         multiDexEnabled = true
@@ -42,14 +42,20 @@ flutter {
     source = "../.."
 }
 
-// build.gradle.kts (Kotlin Script)
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:32.7.2"))
+    // Tumia Firebase BoM (Bill of Materials) ili kudhibiti matoleo ya Firebase
+    // Hii ndiyo suluhisho sahihi la kuzuia makosa ya 'Could not find...'
+    implementation(platform("com.google.firebase:firebase-bom:32.9.0")) // Toleo la hivi karibuni
+
+    // Sasa unaweza kutaja maktaba za Firebase bila namba ya toleo
     implementation("com.google.firebase:firebase-analytics-ktx")
-    implementation("androidx.multidex:multidex:2.0.1")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
     
-    // Add other Firebase dependencies you might need
-    // implementation("com.google.firebase:firebase-auth-ktx")
-    // implementation("com.google.firebase:firebase-firestore-ktx")
+    // dependency ya multidex inahitajika
+    implementation("androidx.multidex:multidex:2.0.1")
+    
+    // coreLibraryDesugaring
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

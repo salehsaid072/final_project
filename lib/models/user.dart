@@ -28,26 +28,30 @@ class UserModel {
     };
   }
 
-  // Create UserModel from Firestore document
+  // Create UserModel from Firestore document with null safety
   factory UserModel.fromMap(String id, Map<String, dynamic> map) {
     return UserModel(
       id: id,
-      fullName: map['fullName'] as String,
-      address: map['address'] as String,
-      email: map['email'] as String,
-      userType: map['userType'] as String,
-      isVerified: map['isVerified'] as bool? ?? false,
+      fullName: (map['fullName'] as String?) ?? 'No Name',
+      address: (map['address'] as String?) ?? 'No Address',
+      email: (map['email'] as String?) ?? 'no-email@example.com',
+      userType: (map['userType'] as String?)?.toLowerCase() == 'admin' 
+          ? 'Admin' 
+          : (map['userType'] as String?)?.toLowerCase() == 'farmer'
+              ? 'Farmer'
+              : 'Buyer',
+      isVerified: (map['isVerified'] as bool?) ?? false,
     );
   }
 
-  // Create an empty UserModel
+  // Create an empty UserModel with default values
   factory UserModel.empty() {
     return UserModel(
-      id: '',
-      fullName: '',
-      address: '',
-      email: '',
-      userType: '',
+      id: 'new-user',
+      fullName: 'New User',
+      address: 'Not specified',
+      email: 'user@example.com',
+      userType: 'Buyer',
       isVerified: false,
     );
   }

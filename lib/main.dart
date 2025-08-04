@@ -68,7 +68,10 @@ class AgriMarketApp extends StatelessWidget {
         // Buyer routes
         '/buyer_home': (context) => const BuyerHomePage(),
         '/product_details': (context) => const ProductDetailsPage(),
-        '/checkout': (context) => const CheckoutPage(),
+        '/checkout': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return CheckoutPage.createWithArguments(args ?? {});
+        },
         '/payment': (context) => const PaymentPage(),
         '/product_listing': (context) => ProductListingPage(
           category: ModalRoute.of(context)?.settings.arguments as String? ?? 'All',

@@ -8,6 +8,8 @@ class Product {
   final int quantity;
   final String description;
   final List<String> images;
+  final String farmer;
+  final String location;
 
   Product({
     required this.id,
@@ -17,6 +19,8 @@ class Product {
     required this.quantity,
     required this.description,
     required this.images,
+    this.farmer = 'Local Farmer',
+    this.location = 'N/A',
   });
 
   Map<String, dynamic> toMap() {
@@ -28,6 +32,8 @@ class Product {
       'quantity': quantity,
       'description': description,
       'images': images,
+      'farmer': farmer,
+      'location': location,
     };
   }
 
@@ -40,6 +46,8 @@ class Product {
       quantity: (map['quantity'] as num?)?.toInt() ?? 0,
       description: map['description'] ?? '',
       images: List<String>.from(map['images'] ?? []),
+      farmer: map['farmer'] ?? 'Local Farmer',
+      location: map['location'] ?? 'N/A',
     );
   }
 
@@ -56,6 +64,8 @@ class Product {
       quantity: (data?['quantity'] as num?)?.toInt() ?? 0,
       description: data?['description'] ?? '',
       images: List<String>.from(data?['images'] ?? []),
+      farmer: data?['farmer'] ?? 'Local Farmer',
+      location: data?['location'] ?? 'N/A',
     );
   }
 
@@ -67,6 +77,8 @@ class Product {
     int? quantity,
     String? description,
     List<String>? images,
+    String? farmer,
+    String? location,
   }) {
     return Product(
       id: id ?? this.id,
@@ -76,6 +88,8 @@ class Product {
       quantity: quantity ?? this.quantity,
       description: description ?? this.description,
       images: images ?? this.images,
+      farmer: farmer ?? this.farmer,
+      location: location ?? this.location,
     );
   }
 }

@@ -9,23 +9,36 @@ class ManageUsersPage extends StatelessWidget {
 
   ManageUsersPage({super.key});
 
-  // Update user data
+  // Update user data with error handling
   Future<void> _updateUser(UserModel user) async {
     try {
+      if (user.id.isEmpty) {
+        throw Exception('User ID is required');
+      }
       await _firestore.collection('users').doc(user.id).update(user.toMap());
     } catch (e) {
+      debugPrint('Error updating user: $e');
       rethrow;
     }
   }
 
-  // Delete user
+  // Delete user with error handling
   Future<void> _deleteUser(String userId) async {
     try {
-      // Delete user from authentication
-      await _auth.currentUser?.delete();
+      if (userId.isEmpty) {
+        throw Exception('User ID is required');
+      }
+      
+      // Delete user from authentication if it's the current user
+      final currentUser = _auth.currentUser;
+      if (currentUser != null && currentUser.uid == userId) {
+        await currentUser.delete();
+      }
+      
       // Delete user data from Firestore
       await _firestore.collection('users').doc(userId).delete();
     } catch (e) {
+      debugPrint('Error deleting user: $e');
       rethrow;
     }
   }
@@ -41,60 +54,150 @@ class ManageUsersPage extends StatelessWidget {
         stream: _firestore.collection('users').snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            debugPrint('Stream error: ${snapshot.error}');
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Error loading users',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${snapshot.error}'.split('\n')[0],
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => ManageUsersPage()),
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final users = snapshot.data?.docs ?? [];
+          try {
+            final users = snapshot.data?.docs.map((doc) {
+              try {
+                return UserModel.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+              } catch (e) {
+                debugPrint('Error parsing user ${doc.id}: $e');
+                return null;
+              }
+            }).where((user) => user != null).cast<UserModel>().toList() ?? [];
 
-          if (users.isEmpty) {
-            return const Center(child: Text('No users found'));
-          }
-
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              border: TableBorder.all(color: Colors.teal, width: 1),
-              headingRowColor: WidgetStateProperty.all(Colors.teal.shade100),
-              columns: const [
-                DataColumn(label: Text('Full Name', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Address', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('User Type', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
-              ],
-              rows: users.map((doc) {
-                final user = UserModel.fromMap(doc.id, doc.data() as Map<String, dynamic>);
-                return DataRow(
-                  cells: [
-                    DataCell(Text(user.fullName)),
-                    DataCell(Text(user.email)),
-                    DataCell(Text(user.address)),
-                    DataCell(Text(user.userType)),
-                    DataCell(Text(user.isVerified ? 'Verified' : 'Not Verified')),
-                    DataCell(
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => _showEditUserDialog(context, user),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _showDeleteConfirmation(context, user.id),
-                          ),
-                        ],
-                      ),
+            if (users.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.people_outline, size: 60, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'No users found',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
                     ),
                   ],
-                );
-              }).toList(),
-            ),
-          );
+                ),
+              );
+            }
+
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: DataTable(
+                  border: TableBorder.all(color: Colors.teal.shade200, width: 1),
+                  headingRowColor: WidgetStateProperty.all(Colors.teal.shade50),
+                  columns: const [
+                    DataColumn(label: Text('Full Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('User Type', style: TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
+                  ],
+                  rows: users.map((user) {
+                    return DataRow(
+                      cells: [
+                        DataCell(Text(user.fullName)),
+                        DataCell(
+                          Tooltip(
+                            message: user.email,
+                            child: Text(
+                              user.email.length > 15 
+                                ? '${user.email.substring(0, 15)}...' 
+                                : user.email,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(Text(user.userType)),
+                        DataCell(
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: user.isVerified ? Colors.green.shade100 : Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              user.isVerified ? 'Verified' : 'Not Verified',
+                              style: TextStyle(
+                                color: user.isVerified ? Colors.green.shade800 : Colors.orange.shade800,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                                onPressed: () => _showEditUserDialog(context, user),
+                                tooltip: 'Edit User',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                onPressed: () => _showDeleteConfirmation(context, user.id),
+                                tooltip: 'Delete User',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            );
+          } catch (e) {
+            debugPrint('Error building user list: $e');
+            return Center(
+              child: Text(
+                'Error displaying users: ${e.toString().split('\n')[0]}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
         },
       ),
     );

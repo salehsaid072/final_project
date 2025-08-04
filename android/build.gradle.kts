@@ -1,9 +1,9 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-
+// Inaitwa build.gradle.kts (project level)
 plugins {
-    id("com.android.application") version "8.7.0" apply false
-    id("org.jetbrains.kotlin.android") version "2.0.0" apply false
-    id("com.google.gms.google-services") version "4.4.2" apply false
+    id("com.android.application") version "8.7.0" apply false // Hakikisha toleo linafaa
+    id("org.jetbrains.kotlin.android") version "1.8.22" apply false
+    id("com.google.gms.google-services") version "4.4.1" apply false // Ongeza hii
+    id("dev.flutter.flutter-gradle-plugin") apply false
 }
 
 buildscript {
